@@ -117,7 +117,7 @@ class EnttecDmxPro:
         for device in devices:
             for i in range(0, 3):
                 packet[dmxDevices[device] + i] = chr(rgb[i])
-        self.sendMsg(SEND_DMX, packet)
+        self.sendMsg(self.SEND_DMX, packet)
 
     def sendMsg(self, msgtype, msg):
         self.port.write("%sc%sc" % (self.START_OF_MESSAGE, msgtype))
