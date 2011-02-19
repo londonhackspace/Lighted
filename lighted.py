@@ -120,10 +120,10 @@ class EnttecDmxPro:
         self.sendMsg(self.SEND_DMX, ''.join(packet))
 
     def sendMsg(self, msgtype, msg):
-        self.port.write("%sc%sc" % (self.START_OF_MESSAGE, msgtype))
-        self.port.write("%sc%sc" % (len(msg) & 0xff, (len(msg) >> 8) & 0xff))
+        self.port.write("%c%c" % (self.START_OF_MESSAGE, msgtype))
+        self.port.write("%c%c" % (len(msg) & 0xff, (len(msg) >> 8) & 0xff))
         self.port.write(msg)
-        self.port.write("%sc" % self.END_OF_MESSAGE)
+        self.port.write("%c" % self.END_OF_MESSAGE)
 
 
 config = ConfigParser.ConfigParser()
