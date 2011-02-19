@@ -2,29 +2,6 @@
 
 import BaseHTTPServer, urlparse, serial, ConfigParser, re, time, shutil, sys
 
-config = ConfigParser.ConfigParser()
-config.read((
-    'lighted.conf',
-    sys.path[0] + '/lighted.conf',
-    '/etc/lighted.conf'
-))
-
-serialPort = config.get('lighted', 'serialport')
-port = serial.Serial(serialPort, 115200, timeout=1)
-
-devices = config.get('lighted', 'dmxdevices')
-offsets = devices.split(',')
-
-dmxDevices = {}
-offset = 0
-for device in offsets:
-    offset += 1
-    dmxDevices[offset] = int(device)
-
-# Default to everything off
-devices_old = dmxDevices.keys()
-rgb_old = ['0','0','0']
-
 class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     # Disable logging DNS lookups
@@ -106,23 +83,82 @@ class Handler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         self.wfile.write('OK')
-        self.setColour(devices, rgb)
+        DMX.setColour(devices, rgb)
 
         global devices_old, rgb_old
         if 'restoreAfter' in params:
             time.sleep(float(params['restoreAfter'][0]))
-            self.setColour(devices_old, rgb_old)
+            DMX.setColour(devices_old, rgb_old)
         else:
             devices_old = devices
             rgb_old = rgb
 
-        
+class ArduinoShield:
+
+    def __init__(self, port):
+        self.port = serial.Serial(port, 115200, timeout=1)
+
     def setColour(self, devices, rgb):
         for device in devices:
             for i in range(0, 3):
-                port.write("%sc%sw" % (dmxDevices[device] + i, rgb[i]))
+                self.port.write("%sc%sw" % (dmxDevices[device] + i, rgb[i]))
         
+class EnttecDmxPro:
+
+    START_OF_MESSAGE = 0x7e
+    END_OF_MESSAGE = 0xe7
+    SEND_DMX = 6
+
+    def __init__(self, port):
+        self.port = serial.Serial(port, 57600, timeout=1)
+
+    def setColour(self, devices, rgb):
+        packet = "\0" * 513
+        for device in devices:
+            for i in range(0, 3):
+                packet[dmxDevices[device] + i] = chr(rgb[i])
+        self.sendMsg(SEND_DMX, packet)
+
+    def sendMsg(self, msgtype, msg):
+        self.port.write("%sc%sc" % (self.START_OF_MESSAGE, msgtype))
+        self.port.write("%sc%sc" % (len(msg) & 0xff, (len(msg) >> 8) & 0xff))
+        self.port.write(msg)
+        self.port.write("%sc" % self.END_OF_MESSAGE)
+
+
+config = ConfigParser.ConfigParser()
+config.read((
+    'lighted.conf',
+    sys.path[0] + '/lighted.conf',
+    '/etc/lighted.conf'
+))
+
+serialPort = config.get('lighted', 'serialport')
+dmxType = config.get('lighted', 'controller')
+try:
+    dmxClass = {
+        'arduino': ArduinoShield,
+        'enttec':  EnttecDmxPro,
+    }[dmxType.lower()]
+except KeyError:
+    raise KeyError('Invalid DMX controller')
+else:
+    DMX = dmxClass(serialPort)
+
+devices = config.get('lighted', 'dmxdevices')
+offsets = devices.split(',')
+
+dmxDevices = {}
+offset = 0
+for device in offsets:
+    offset += 1
+    dmxDevices[offset] = int(device)
+
+# Default to everything off
+devices_old = dmxDevices.keys()
+rgb_old = ['0','0','0']
 
 PORT = config.getint('lighted', 'tcpport')
 httpd = BaseHTTPServer.HTTPServer(("", PORT), Handler)
 httpd.serve_forever()
+
