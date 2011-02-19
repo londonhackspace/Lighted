@@ -113,11 +113,11 @@ class EnttecDmxPro:
         self.port = serial.Serial(port, 57600, timeout=1)
 
     def setColour(self, devices, rgb):
-        packet = "\0" * 513
+        packet = ["\0"] * 513
         for device in devices:
             for i in range(0, 3):
                 packet[dmxDevices[device] + i] = chr(rgb[i])
-        self.sendMsg(self.SEND_DMX, packet)
+        self.sendMsg(self.SEND_DMX, ''.join(packet))
 
     def sendMsg(self, msgtype, msg):
         self.port.write("%sc%sc" % (self.START_OF_MESSAGE, msgtype))
