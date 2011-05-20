@@ -111,7 +111,7 @@ class EnttecDmxPro:
 
     def __init__(self, port):
         self.port = serial.Serial(port, 57600, timeout=1)
-		self.universe = ["\0"] * 513
+        self.universe = ["\0"] * 513
 
     def setColour(self, devices, rgb):
         for device in devices:
